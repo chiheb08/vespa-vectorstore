@@ -6,5 +6,6 @@ This folder contains simple explanations of common retrieval/search terms used i
 - **RRF (Reciprocal Rank Fusion)**: `RRF.md`
 - **Re-ranking**: `Re-ranking.md`
 - **Metadata filtering**: `Metadata-filtering.md`
+- **Other methods (more techniques)**: `Other-methods.md`
 
 
