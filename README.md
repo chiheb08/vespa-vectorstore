@@ -4,6 +4,7 @@ This repository is a small, practical “Vespa as a vector store” starter:
 
 - **Beginner guide (start here)**: `VESPA_VECTOR_STORE_BEGINNER_GUIDE.md`
 - **Tutorial (more detailed)**: `VESPA_VECTOR_STORE_TUTORIAL.md`
+- **Performance monitoring**: `VESPA_PERFORMANCE_MONITORING_GUIDE.md`
 - **Example Vespa app package**: `my-vespa-app/`
 - **Sample scripts**:
   - `scripts/generate_feed.py` generates JSONL “chunk” documents (with random embeddings) you can feed into Vespa
