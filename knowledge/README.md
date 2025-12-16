@@ -7,5 +7,6 @@ This folder contains simple explanations of common retrieval/search terms used i
 - **Re-ranking**: `Re-ranking.md`
 - **Metadata filtering**: `Metadata-filtering.md`
 - **Other methods (more techniques)**: `Other-methods.md`
+- **Chunking (how to split documents)**: `chunking/README.md`
 
 
