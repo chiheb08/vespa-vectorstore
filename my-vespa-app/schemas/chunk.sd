@@ -1,0 +1,42 @@
+schema chunk {
+
+  document chunk {
+    field chunk_id type string {
+      indexing: summary | attribute
+    }
+    field doc_id type string {
+      indexing: summary | attribute
+    }
+    field text type string {
+      indexing: summary | index
+      index: enable-bm25
+    }
+
+    # Keep this small by default so examples are readable.
+    # Change 128 to your real embedding dimension (e.g., 384/768/1536).
+    field embedding type tensor<float>(x[128]) {
+      indexing: attribute
+      attribute {
+        distance-metric: angular
+        hnsw {
+          max-links-per-node: 16
+          neighbors-to-explore-at-insert: 200
+        }
+      }
+    }
+  }
+
+  rank-profile vector {
+    first-phase {
+      expression: closeness(embedding)
+    }
+  }
+
+  rank-profile hybrid inherits vector {
+    first-phase {
+      expression: 0.5 * bm25(text) + 0.5 * closeness(embedding)
+    }
+  }
+}
+
+
