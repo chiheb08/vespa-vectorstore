@@ -1,0 +1,47 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Vespa query latency (exported) - any matching series",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "vespa_metric_value{metric=~\"(?i).*query.*latency.*\"}",
+          "legendFormat": "{{metric}} {{stat}} {{service}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Vespa feed / ingest (exported) - any matching series",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 10 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "vespa_metric_value{metric=~\"(?i).*feed.*|.*ingest.*\"}",
+          "legendFormat": "{{metric}} {{stat}} {{service}}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["vespa"],
+  "templating": { "list": [] },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Vespa Overview (exporter)",
+  "uid": "vespa-overview-exporter",
+  "version": 1
+}
+
+

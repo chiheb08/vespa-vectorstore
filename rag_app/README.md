@@ -29,6 +29,19 @@ docker compose up -d --build
 
 Wait for Vespa to become healthy (first start can take a bit).
 
+If you see a build error like:
+
+> `unable to prepare context: path ".../vespa-metrics-exporter" not found`
+
+it means you are running an older checkout. Fix by:
+
+```bash
+cd /Users/chihebmhamdi/Desktop/vespa
+git pull
+cd rag_app
+docker compose up -d --build
+```
+
 ---
 
 ### 2) Pull Ollama models (first time only)
