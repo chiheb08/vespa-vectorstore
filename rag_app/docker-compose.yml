@@ -28,8 +28,8 @@ services:
       - |
         set -euo pipefail
         echo "[vespa-deployer] Deploying application package from /app to vespa:19071"
-        /opt/vespa/bin/vespa-deploy prepare /app
-        /opt/vespa/bin/vespa-deploy activate
+        /opt/vespa/bin/vespa-deploy -c vespa prepare /app
+        /opt/vespa/bin/vespa-deploy -c vespa activate
         echo "[vespa-deployer] Done"
 
   ollama:
