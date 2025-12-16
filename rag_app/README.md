@@ -29,6 +29,8 @@ docker compose up -d --build
 
 Wait for Vespa to become healthy (first start can take a bit).
 
+Note: this stack uses a small one-shot container `vespa-deployer` that deploys the Vespa schema automatically once Vespa is healthy.
+
 If you see a build error like:
 
 > `unable to prepare context: path ".../vespa-metrics-exporter" not found`

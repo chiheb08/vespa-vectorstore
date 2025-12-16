@@ -1,16 +1,36 @@
 services:
   vespa:
-    build:
-      context: ./vespa
+    image: vespaengine/vespa:latest
     container_name: rag_vespa
+    hostname: vespa
     ports:
       - "8080:8080"   # Vespa query + document API
       - "19071:19071" # Vespa config/metrics
+    volumes:
+      - ./vespa/app:/app:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:19071/state/v1/health >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 30
+
+  vespa-deployer:
+    image: vespaengine/vespa:latest
+    container_name: rag_vespa_deployer
+    depends_on:
+      vespa:
+        condition: service_healthy
+    volumes:
+      - ./vespa/app:/app:ro
+    restart: "no"
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - |
+        set -euo pipefail
+        echo "[vespa-deployer] Deploying application package from /app to vespa:19071"
+        /opt/vespa/bin/vespa-deploy prepare /app
+        /opt/vespa/bin/vespa-deploy activate
+        echo "[vespa-deployer] Done"
 
   ollama:
     image: ollama/ollama:latest
@@ -51,6 +71,8 @@ services:
         condition: service_healthy
       ollama:
         condition: service_started
+      vespa-deployer:
+        condition: service_completed_successfully
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
