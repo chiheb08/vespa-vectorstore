@@ -1,0 +1,166 @@
+### `rag_app` — OpenWebUI + Ollama + Vespa RAG (Docker Compose)
+
+This folder contains a runnable RAG stack:
+
+- **OpenWebUI** (UI): `http://localhost:3000`
+- **RAG API (OpenAI-compatible)**: `http://localhost:8000`
+- **Ollama** (LLM + embeddings): `http://localhost:11434`
+- **Vespa** (vector store): `http://localhost:8080` (data plane), `http://localhost:19071` (metrics/control)
+- **Prometheus**: `http://localhost:9090`
+- **Grafana**: `http://localhost:3001` (user/pass: `admin` / `admin`)
+
+The integration is:
+
+1. You ingest documents into Vespa using `rag-api` (it chunks + embeds using Ollama).
+2. You chat in OpenWebUI, but you point it to `rag-api` as an OpenAI-compatible endpoint.
+3. `rag-api` retrieves top chunks from Vespa and calls Ollama to generate the final answer.
+4. Vespa metrics are exported to Prometheus and visualized in Grafana.
+
+---
+
+### 1) Start everything
+
+From the repository root:
+
+```bash
+cd rag_app
+docker compose up -d --build
+```
+
+Wait for Vespa to become healthy (first start can take a bit).
+
+---
+
+### 2) Pull Ollama models (first time only)
+
+This project defaults to:
+
+- Chat model: `llama3.1:8b`
+- Embedding model: `nomic-embed-text`
+
+Pull them:
+
+```bash
+docker exec -it rag_ollama ollama pull llama3.1:8b
+docker exec -it rag_ollama ollama pull nomic-embed-text
+```
+
+List installed models:
+
+```bash
+docker exec -it rag_ollama ollama list
+```
+
+---
+
+### 3) Ingest documents into Vespa (via rag-api)
+
+#### 3.1 Ingest plain text
+
+```bash
+curl -s http://localhost:8000/ingest/text \
+  -H "Content-Type: application/json" \
+  -d '{
+    "doc_id": "doc-1",
+    "text": "Paste a few paragraphs here. This will be chunked, embedded, and stored in Vespa."
+  }' | python3 -m json.tool
+```
+
+#### 3.2 Ingest a file (txt/md/pdf)
+
+```bash
+curl -s http://localhost:8000/ingest/file \
+  -F "doc_id=myfile-1" \
+  -F "file=@/ABS/PATH/TO/file.pdf" | python3 -m json.tool
+```
+
+---
+
+### 4) Chat with RAG in OpenWebUI
+
+OpenWebUI: `http://localhost:3000`
+
+In OpenWebUI, add a new **OpenAI-compatible** connection:
+
+- **Base URL**: `http://rag-api:8000/v1` (from inside OpenWebUI container)
+  - If the UI requires a host URL, use: `http://localhost:8000/v1`
+- **API key**: any dummy value (the demo API does not enforce auth)
+
+Then select the model exposed by `rag-api` (example: `rag-ollama`).
+
+---
+
+### 5) Test the RAG API directly (no UI)
+
+```bash
+curl -s http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "rag-ollama",
+    "messages": [
+      { "role": "user", "content": "What is this document about?" }
+    ]
+  }' | python3 -m json.tool
+```
+
+---
+
+### 6) Monitoring Vespa (Grafana)
+
+Open Grafana: `http://localhost:3001` (admin/admin)
+
+- A Prometheus datasource is auto-provisioned.
+- A starter dashboard is included under “Vespa”.
+
+Also useful endpoints:
+
+- Vespa health: `http://localhost:19071/state/v1/health`
+- Vespa raw metrics JSON: `http://localhost:19071/metrics/v2/values`
+- Exporter metrics (Prometheus text): `http://localhost:9109/metrics`
+
+---
+
+### 7) Configuration (most important knobs)
+
+Edit these in `docker-compose.yml` under `rag-api`:
+
+- `OLLAMA_CHAT_MODEL`: generation model
+- `OLLAMA_EMBED_MODEL`: embedding model
+- `EMBED_DIM`: must match the embedding model output AND Vespa schema
+- `RAG_TOP_K`: how many chunks to return to the prompt
+- `RAG_TARGET_HITS`: ANN candidate count (higher = often better recall, slower)
+
+If you change `EMBED_DIM`, you must also update the Vespa schema:
+
+- `rag_app/vespa/app/schemas/chunk.sd`
+
+Then rebuild:
+
+```bash
+docker compose up -d --build
+```
+
+---
+
+### 8) Troubleshooting
+
+- **No answers / empty context**:
+  - you probably didn’t ingest documents yet
+  - verify with: `curl -s http://localhost:8080/search/ ...` (see `rag-api` logs too)
+
+- **Embedding dimension errors**:
+  - ensure `EMBED_DIM` matches the model output and schema `tensor<float>(x[...])`
+
+- **Ollama is slow**:
+  - first generation after pulling a model is slower
+  - large models on CPU can be very slow
+
+---
+
+### 9) Stop everything
+
+```bash
+docker compose down
+```
+
+

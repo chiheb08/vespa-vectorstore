@@ -1,0 +1,44 @@
+schema chunk {
+
+  document chunk {
+    field chunk_id type string {
+      indexing: summary | attribute
+    }
+    field doc_id type string {
+      indexing: summary | attribute
+    }
+    field text type string {
+      indexing: summary | index
+      index: enable-bm25
+    }
+
+    # Default embedding dimension for nomic-embed-text is commonly 768.
+    # If you change the embedding model, update BOTH:
+    # - docker-compose.yml (rag-api: EMBED_DIM)
+    # - this field dimension
+    field embedding type tensor<float>(x[768]) {
+      indexing: attribute
+      attribute {
+        distance-metric: angular
+        hnsw {
+          max-links-per-node: 16
+          neighbors-to-explore-at-insert: 200
+        }
+      }
+    }
+  }
+
+  rank-profile vector {
+    first-phase {
+      expression: closeness(embedding)
+    }
+  }
+
+  rank-profile hybrid inherits vector {
+    first-phase {
+      expression: 0.5 * bm25(text) + 0.5 * closeness(embedding)
+    }
+  }
+}
+
+
