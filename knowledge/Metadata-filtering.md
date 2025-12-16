@@ -24,6 +24,18 @@ Metadata is **extra fields** about a chunk, not the chunk text itself. Examples:
 - “Search only in PDFs”
 - “Search only in docs after 2025-01-01”
 
+#### A beginner-friendly example (RAG)
+Imagine you have two customers:
+
+- Tenant `acme`
+- Tenant `beta`
+
+User from `acme` asks: “How do I restart Vespa?”
+
+If you **forget** the filter `tenant_id="acme"`, your retriever might return chunks from `beta` (data leak).
+
+So in a multi-tenant app, metadata filtering is not optional — it’s a security rule.
+
 #### How it fits with vector search
 Typical flow:
 

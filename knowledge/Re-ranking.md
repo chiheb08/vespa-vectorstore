@@ -24,6 +24,10 @@ Query: “Why did Docker fail to build my Vespa image?”
 - Retriever returns 50 chunks: some about Docker, some about chmod, some about Vespa.
 - Re-ranker puts “chmod Operation not permitted” chunks at the top.
 
+#### Quick mental model
+- Retrieval answers: “Which chunks are *possibly* relevant?”
+- Re-ranking answers: “Which of these chunks are *most* relevant?”
+
 #### Key tradeoff
 - Higher `candidate_count` → better chance to include the right chunk, but more re-rank cost.
 

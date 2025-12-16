@@ -48,22 +48,36 @@ docker compose up -d --build
 
 ### 2) Pull Ollama models (first time only)
 
+OpenWebUI only shows **models that exist in Ollama**. If you don’t pull any models, the model dropdown will be empty.
+
 This project defaults to:
 
 - Chat model: `llama3.1:8b`
 - Embedding model: `nomic-embed-text`
 
-Pull them:
+Pull them (recommended: start with a small model first, then upgrade):
 
 ```bash
-docker exec -it rag_ollama ollama pull llama3.1:8b
-docker exec -it rag_ollama ollama pull nomic-embed-text
+docker exec rag_ollama ollama pull llama3.2:1b
+docker exec rag_ollama ollama pull nomic-embed-text
 ```
 
 List installed models:
 
 ```bash
-docker exec -it rag_ollama ollama list
+docker exec rag_ollama ollama list
+```
+
+If OpenWebUI still shows no models after pulling, restart it:
+
+```bash
+docker compose restart open-webui
+```
+
+Optional: pull a bigger chat model (slower/heavier):
+
+```bash
+docker exec rag_ollama ollama pull llama3.1:8b
 ```
 
 ---
@@ -158,6 +172,20 @@ docker compose up -d --build
 ---
 
 ### 8) Troubleshooting
+
+- **OpenWebUI shows no models**
+  - run: `docker exec rag_ollama ollama list`
+  - if empty, pull one: `docker exec rag_ollama ollama pull llama3.2:1b`
+  - restart UI: `docker compose restart open-webui`
+
+- **`rag_vespa exited (137)`**
+  - this is usually **out-of-memory (OOM)** in Docker Desktop
+  - fix: increase Docker Desktop memory (try 6–8GB+), then restart:
+
+```bash
+docker compose down
+docker compose up -d --build
+```
 
 - **No answers / empty context**:
   - you probably didn’t ingest documents yet
