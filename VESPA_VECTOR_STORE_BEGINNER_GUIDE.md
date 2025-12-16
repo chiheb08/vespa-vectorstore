@@ -16,13 +16,13 @@ You are building a system for **retrieval** (finding relevant text chunks) that 
 
 ```mermaid
 flowchart LR
-  A[Your data: PDFs / pages / notes] --> B[Chunker]
-  B --> C[Embedding model]
-  C -->|vector + text| D[Vespa]
-  Q[User question] --> E[Query embedding]
+  A["Your data: PDFs, pages, notes"] --> B["Chunker"]
+  B --> C["Embedding model"]
+  C -->|vector + text| D["Vespa"]
+  Q["User question"] --> E["Query embedding"]
   E -->|vector| D
-  D --> F[Top-K matching chunks]
-  F --> G[LLM prompt (RAG)]
+  D --> F["Top-K matching chunks"]
+  F --> G["LLM prompt - RAG"]
 ```
 
 **Key idea**: the LLM does not “search the internet”. It searches your stored chunks using **vector similarity**.
@@ -84,9 +84,9 @@ Vespa has two main “planes” you will interact with locally:
 ```mermaid
 flowchart TB
   subgraph Your machine
-    CLI[Vespa CLI / curl] -->|feed + query| DP[Data plane :8080]
-    CLI -->|metrics| CP[Control plane :19071]
-    DP --> ENG[Vespa engine]
+    CLI["Vespa CLI / curl"] -->|feed + query| DP["Data plane :8080"]
+    CLI -->|metrics| CP["Control plane :19071"]
+    DP --> ENG["Vespa engine"]
     CP --> ENG
   end
 ```
@@ -175,7 +175,7 @@ sequenceDiagram
   participant U as You
   participant V as Vespa
   participant I as HNSW index
-  U->>V: query (vector q, hits=K)
+  U->>V: query: vector q, hits=K
   V->>I: ANN search for nearest neighbors
   I-->>V: candidate chunk ids
   V-->>U: top-K chunks (text + ids + scores)
