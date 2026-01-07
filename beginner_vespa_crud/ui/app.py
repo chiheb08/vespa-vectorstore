@@ -40,7 +40,8 @@ with st.form("put_form"):
 if submitted:
     tags = [t.strip() for t in tags_str.split(",") if t.strip()]
     payload = {"fields": {"title": title, "body": body, "tags": tags}}
-    r = requests.put(vespa_doc_url(docid), json=payload, timeout=10)
+    # Use POST for create/upsert. Some Vespa versions treat PUT as "field update" requiring {assign: ...}.
+    r = requests.post(vespa_doc_url(docid), json=payload, timeout=10)
     st.code(r.text)
     st.success(f"Saved docid={docid}")
 

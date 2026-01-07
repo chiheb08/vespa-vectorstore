@@ -53,10 +53,10 @@ Note: If you ever get an error like:
 
 it usually means the shell quoting turned your JSON into a **string**. The `--data-binary @- <<'JSON' ... JSON` style below avoids that problem on macOS/zsh.
 
-### 2.1 Create (PUT a document)
+### 2.1 Create / Upsert (POST a document)
 
 ```bash
-curl -X PUT "http://localhost:8081/document/v1/demo/item/docid/1" \
+curl -X POST "http://localhost:8081/document/v1/demo/item/docid/1" \
   -H "Content-Type: application/json" \
   --data-binary @- <<'JSON'
 {
@@ -69,10 +69,14 @@ curl -X PUT "http://localhost:8081/document/v1/demo/item/docid/1" \
 JSON
 ```
 
-### 2.2 Update (PUT again with same id)
+### 2.2 Update (two easy options)
+
+#### Option A (beginner): POST again (simple upsert)
+
+This is the simplest approach: send the whole document again.
 
 ```bash
-curl -X PUT "http://localhost:8081/document/v1/demo/item/docid/1" \
+curl -X POST "http://localhost:8081/document/v1/demo/item/docid/1" \
   -H "Content-Type: application/json" \
   --data-binary @- <<'JSON'
 {
@@ -80,6 +84,23 @@ curl -X PUT "http://localhost:8081/document/v1/demo/item/docid/1" \
     "title": "Hello Vespa (updated)",
     "body": "I updated the body text.",
     "tags": ["tutorial", "update"]
+  }
+}
+JSON
+```
+
+#### Option B (advanced): PATCH-style update with PUT + `assign`
+
+Some Vespa versions treat **PUT** as a *field update* request. In that case, you must use update operations like `assign`:
+
+```bash
+curl -X PUT "http://localhost:8081/document/v1/demo/item/docid/1" \
+  -H "Content-Type: application/json" \
+  --data-binary @- <<'JSON'
+{
+  "fields": {
+    "title": { "assign": "Hello Vespa (updated)" },
+    "body":  { "assign": "I updated the body text." }
   }
 }
 JSON
