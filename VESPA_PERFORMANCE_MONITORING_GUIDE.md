@@ -238,3 +238,4 @@ If you want “real dashboards”:
 If you tell me your environment (Docker only vs Kubernetes vs VMs), I can add a dedicated section with the exact steps for that setup.
 
 
+

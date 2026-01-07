@@ -1,0 +1,23 @@
+schema item {
+  document item {
+    field title type string {
+      indexing: summary | index
+      index: enable-bm25
+    }
+    field body type string {
+      indexing: summary | index
+      index: enable-bm25
+    }
+    field tags type array<string> {
+      indexing: summary | attribute
+    }
+  }
+
+  document-summary default {
+    summary title type string
+    summary body type string
+    summary tags type array<string>
+  }
+}
+
+

@@ -34,3 +34,4 @@ We switched to a safer Docker Compose pattern:
 This keeps Vespa startup stable and still gives “one command” deployment.
 
 
+

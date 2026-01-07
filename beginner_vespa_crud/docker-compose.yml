@@ -1,0 +1,49 @@
+services:
+  vespa:
+    image: vespaengine/vespa:latest
+    container_name: beginner_vespa
+    hostname: vespa
+    ports:
+      - "8081:8080"   # map to 8081 to avoid clashing with rag_app (which uses 8080)
+      - "19072:19071" # map to 19072 to avoid clashing with rag_app (which uses 19071)
+    volumes:
+      - ./vespa/app:/app:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:19071/state/v1/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  vespa-deployer:
+    image: vespaengine/vespa:latest
+    container_name: beginner_vespa_deployer
+    depends_on:
+      vespa:
+        condition: service_healthy
+    volumes:
+      - ./vespa/app:/app:ro
+    restart: "no"
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - |
+        set -euo pipefail
+        echo "[vespa-deployer] Deploying application package from /app to vespa:19071"
+        /opt/vespa/bin/vespa-deploy -c vespa prepare /app
+        /opt/vespa/bin/vespa-deploy -c vespa activate
+        echo "[vespa-deployer] Done"
+
+  ui:
+    build:
+      context: ./ui
+    container_name: beginner_vespa_ui
+    environment:
+      - VESPA_URL=http://vespa:8080
+    ports:
+      - "8501:8501"
+    depends_on:
+      vespa:
+        condition: service_healthy
+      vespa-deployer:
+        condition: service_completed_successfully
+
+

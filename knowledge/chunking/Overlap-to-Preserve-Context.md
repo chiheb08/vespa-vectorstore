@@ -92,3 +92,4 @@ Ask: “Do my top results look like partial answers?”
 - If top results are complete but wrong: overlap won’t help; try better chunking or better retrieval.
 
 
+
