@@ -1,0 +1,56 @@
+services:
+  vespa:
+    image: vespaengine/vespa:latest
+    container_name: retrieval_lab_vespa
+    hostname: vespa
+    ports:
+      - "8082:8080"   # Vespa query + document API (lab)
+      - "19072:19071" # Vespa config/metrics (lab)
+    volumes:
+      - ./vespa/app:/app:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:19071/state/v1/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  vespa-deployer:
+    image: vespaengine/vespa:latest
+    container_name: retrieval_lab_vespa_deployer
+    depends_on:
+      vespa:
+        condition: service_healthy
+    volumes:
+      - ./vespa/app:/app:ro
+    restart: "no"
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - |
+        set -euo pipefail
+        echo "[vespa-deployer] Deploying application package from /app to vespa:19071"
+        /opt/vespa/bin/vespa-deploy -c vespa prepare /app
+        /opt/vespa/bin/vespa-deploy -c vespa activate
+        echo "[vespa-deployer] Done"
+
+  lab:
+    build:
+      context: ./lab
+    container_name: retrieval_lab_api
+    environment:
+      - VESPA_URL=http://vespa:8080
+      - VESPA_NAMESPACE=lab
+      - EMBED_MODEL=sentence-transformers/all-MiniLM-L6-v2
+      - EMBED_DIM=384
+      - LOG_PATH=/logs/requests.jsonl
+    volumes:
+      - ./data:/data:ro
+      - ./logs:/logs
+    ports:
+      - "8001:8000"
+    depends_on:
+      vespa:
+        condition: service_healthy
+      vespa-deployer:
+        condition: service_completed_successfully
+
+

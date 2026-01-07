@@ -1,0 +1,24 @@
+[
+  {
+    "query": "Cannot connect to the Docker daemon",
+    "relevant_doc_ids": ["doc-1"]
+  },
+  {
+    "query": "chmod entrypoint.sh operation not permitted",
+    "relevant_doc_ids": ["doc-2"]
+  },
+  {
+    "query": "heredoc> stuck in terminal",
+    "relevant_doc_ids": ["doc-3"]
+  },
+  {
+    "query": "how to debug recall vs ranking in retrieval",
+    "relevant_doc_ids": ["doc-4"]
+  },
+  {
+    "query": "distribution-key missing in services.xml",
+    "relevant_doc_ids": ["doc-7"]
+  }
+]
+
+

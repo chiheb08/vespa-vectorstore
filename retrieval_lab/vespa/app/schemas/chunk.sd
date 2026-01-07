@@ -1,0 +1,57 @@
+schema chunk {
+
+  document chunk {
+    field chunk_id type string {
+      indexing: summary | attribute
+    }
+
+    field doc_id type string {
+      indexing: summary | attribute
+    }
+
+    # Simple metadata filters to practice debugging "over-filtering"
+    field tenant_id type string {
+      indexing: summary | attribute
+    }
+
+    field source type string {
+      indexing: summary | attribute
+    }
+
+    field text type string {
+      indexing: summary | index
+      index: enable-bm25
+    }
+
+    # all-MiniLM-L6-v2 outputs 384-dimensional embeddings.
+    # If you change EMBED_MODEL, you must change this dimension too.
+    field embedding type tensor<float>(x[384]) {
+      indexing: attribute | index
+      attribute {
+        distance-metric: angular
+      }
+      index {
+        hnsw {
+          max-links-per-node: 16
+          neighbors-to-explore-at-insert: 200
+        }
+      }
+    }
+  }
+
+  rank-profile vector {
+    first-phase {
+      expression: closeness(embedding)
+    }
+  }
+
+  # Hybrid = vector similarity + BM25 keyword score.
+  # In this lab we typically combine this with a simple keyword constraint in the YQL.
+  rank-profile hybrid inherits vector {
+    first-phase {
+      expression: 0.5 * bm25(text) + 0.5 * closeness(embedding)
+    }
+  }
+}
+
+
