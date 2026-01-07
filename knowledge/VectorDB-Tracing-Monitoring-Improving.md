@@ -101,6 +101,25 @@ With this you can answer questions like:
 
 ---
 
+## 2.7 (Beginner tip) How to interpret “vector scores”
+
+Most systems return a **relevance** (a score). Beginners often think:
+“Why is the score 0.37? Is that good or bad?”
+
+The important rules:
+
+- A score is mostly useful **relative to other scores for the same query**.
+- Scores from different queries are often not comparable.
+- If you see “many very close scores”, your retriever is unsure and reranking can help.
+
+In Vespa:
+- vector-only ranking often uses something like **`closeness(embedding)`**
+- hybrid uses something like **`bm25(text) + closeness(embedding)`**
+
+So the score is a combination of “keyword match strength” and “semantic similarity”.
+
+---
+
 ## 3) The most important debugging skill: recall vs ranking
 
 When results are bad, you must decide which problem you have:
@@ -136,6 +155,22 @@ Typical fixes:
 - temporarily increase K (and/or ANN candidates)
 - if the right chunk appears deeper → ranking problem
 - if it never appears → recall problem
+
+---
+
+## 3.3 (Deeper but simple) What `targetHits` / candidate count really does
+
+Vector search is usually done with an **ANN index** (like HNSW).
+ANN is fast because it does *not* check every vector.
+
+So you get a “knob”:
+- **small candidate count** → faster, but may miss relevant items (lower recall)
+- **large candidate count** → slower, but more likely to include the right items (higher recall)
+
+In Vespa examples, that knob is often expressed as:
+- `({targetHits:50}nearestNeighbor(embedding, q))`
+
+When you debug a recall problem, increasing candidate count is one of the first safe experiments.
 
 ---
 
@@ -176,6 +211,19 @@ Use the K/candidate trick described above.
 
 ---
 
+## 4.1 A “10-minute checklist” for the most common real-world failures
+
+When retrieval is suddenly bad, check these in this order:
+
+- **Filters**: wrong tenant/user/source/time range? (over-filtering)
+- **Embedding model**: did you change the model or dimension?
+- **Index freshness**: did new documents get ingested successfully?
+- **Data/cleaning**: is the extracted text empty/garbled?
+- **Chunking**: are chunks too small/too big/duplicated?
+- **Candidate count**: did you reduce `targetHits` / ANN exploration?
+
+---
+
 ## 5) Monitoring: what to put on a dashboard (starter set)
 
 ### 5.1 Quality proxies (online)
@@ -198,6 +246,26 @@ Track times separately so you know where time is spent:
 - OOM kills / restarts
 - disk usage
 - index size growth
+
+---
+
+## 5.4 (Very practical) What to look for in Vespa itself
+
+Even without Prometheus/Grafana, Vespa exposes:
+
+- **Health**: `/state/v1/health`
+- **Metrics (JSON)**: `/metrics/v2/values`
+
+Beginner approach to metrics:
+
+- Step 1: snapshot metrics when things feel good
+- Step 2: snapshot again when things feel bad
+- Step 3: diff them (latency, errors, resource pressure)
+
+What you typically search for in the metrics JSON:
+- query latency / query rate
+- feed latency / feed errors (if you ingest)
+- memory pressure (OOM risk)
 
 ---
 
@@ -232,6 +300,18 @@ High impact when the right chunk is “in the candidate set but not #1”.
 Helpful when user queries are vague or underspecified.
 
 ---
+
+## 6.7 (Beginner path) How to add “more technical depth” safely
+
+If you’re new, avoid changing 5 things at once. A safe upgrade path:
+
+1. **Add logging** (request_id, filters, model version, candidates, results)
+2. **Add a small evaluation set** (even 30 queries is a start)
+3. **Tune candidate count** (improve recall)
+4. **Add hybrid** (help with exact terms)
+5. **Add reranking** (fix ranking)
+
+You’ll learn faster because each change has a measurable effect.
 
 ## 7) Common failure modes and how they show up
 
