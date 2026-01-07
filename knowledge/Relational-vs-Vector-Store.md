@@ -88,6 +88,86 @@ Vespa supports this pattern.
 
 ---
 
+## 5) End-to-end flow: user question → embedding → vector search → top chunks
+
+This is the exact process you asked about, step-by-step, in simple terms.
+
+### Step 1: User asks a question (plain text)
+Example:
+
+- User: “How do I fix Docker daemon not running?”
+
+At this moment, it’s just text — Vespa can’t do vector similarity yet.
+
+### Step 2: The embedding model converts the text into numbers
+An **embedding model** is a model that takes text and outputs a vector:
+
+- input: text
+- output: something like `[0.012, -0.33, ...]`
+
+Important:
+- the output vector has a **fixed length** (example: 384 or 768 or 1536)
+- this length must match your schema definition: `tensor<float>(x[DIM])`
+
+### Step 3: Vespa already has embeddings stored for every chunk
+When you ingested your documents earlier, you stored:
+
+- `text` (the chunk content)
+- `embedding` (the chunk meaning as a vector)
+
+So Vespa has “a table of chunks”, and each row has a vector in the `embedding` field.
+
+### Step 4: Vespa compares the query vector to stored vectors
+Now you provide the query vector to Vespa (in the query request).
+
+Vespa conceptually does:
+
+- compare query vector \(q\) with each chunk’s vector \(v\)
+- compute “how close” they are (cosine/angle here)
+- return the top K closest chunks
+
+But doing this exactly over many chunks is expensive, so…
+
+### Step 5: Vespa uses an ANN index (HNSW) to do it fast
+Because comparing against *every* vector is slow, Vespa can build an **HNSW** index.
+
+- **HNSW** is like a “fast map” to jump to likely neighbors instead of scanning everything.
+- It’s **approximate** (very fast, usually good enough for retrieval).
+
+This is why your schema has:
+
+- `distance-metric: angular`
+- `hnsw { ... }`
+
+### Step 6: Vespa returns “hits” (the best chunks)
+Vespa returns the top results (hits):
+
+- chunk id / doc id
+- text
+- a relevance score (how close / how relevant)
+
+Then your application takes those returned chunks and puts them into the LLM prompt.
+
+### Step 7: The LLM answers using the retrieved chunks (RAG)
+Finally:
+- LLM sees: user question + retrieved chunk texts
+- LLM generates an answer grounded in those chunks
+
+#### The whole pipeline in one diagram
+
+```mermaid
+flowchart LR
+  U["User question"] --> EM["Embedding model"]
+  EM --> QV["Query vector"]
+  DB["Vespa documents (chunks)\ntext + embedding field"] --> IDX["HNSW index built on embedding"]
+  QV --> IDX
+  IDX --> TOPK["Top-K chunk hits"]
+  TOPK --> LLM["LLM prompt (RAG)\nquestion + chunks"]
+  LLM --> A["Final answer"]
+```
+
+---
+
 ## 5) Explaining your `chunk.sd` schema (line-by-line, easy)
 
 This is your file:
