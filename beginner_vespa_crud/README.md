@@ -53,7 +53,9 @@ Note: If you ever get an error like:
 
 it usually means the shell quoting turned your JSON into a **string**. The `--data-binary @- <<'JSON' ... JSON` style below avoids that problem on macOS/zsh.
 
-### 2.1 Create / Upsert (POST a document)
+### 2.1 Create / Upsert (POST a document) ✅ (start here)
+
+This is the simplest “add an entry” method.
 
 ```bash
 curl -X POST "http://localhost:8081/document/v1/demo/item/docid/1" \
@@ -69,7 +71,25 @@ curl -X POST "http://localhost:8081/document/v1/demo/item/docid/1" \
 JSON
 ```
 
-### 2.2 Update (two easy options)
+### 2.2 Add another entry (a second document)
+
+Same as above, just use a different `docid` (here: `2`):
+
+```bash
+curl -X POST "http://localhost:8081/document/v1/demo/item/docid/2" \
+  -H "Content-Type: application/json" \
+  --data-binary @- <<'JSON'
+{
+  "fields": {
+    "title": "Second item",
+    "body": "This is a second document in Vespa.",
+    "tags": ["tutorial"]
+  }
+}
+JSON
+```
+
+### 2.3 Update an existing entry (two easy options)
 
 #### Option A (beginner): POST again (simple upsert)
 
@@ -106,7 +126,7 @@ curl -X PUT "http://localhost:8081/document/v1/demo/item/docid/1" \
 JSON
 ```
 
-### 2.3 Read/Search (keyword search)
+### 2.4 Read/Search (keyword search)
 
 Search in `body` / `title`:
 
@@ -117,7 +137,7 @@ curl -s "http://localhost:8081/search/?" \
   --data-urlencode 'hits=5' | python3 -m json.tool
 ```
 
-### 2.4 List all documents
+### 2.5 List all documents
 
 ```bash
 curl -s "http://localhost:8081/search/?" \
@@ -125,7 +145,7 @@ curl -s "http://localhost:8081/search/?" \
   --data-urlencode 'hits=20' | python3 -m json.tool
 ```
 
-### 2.5 Delete
+### 2.6 Delete
 
 ```bash
 curl -X DELETE "http://localhost:8081/document/v1/demo/item/docid/1"
