@@ -47,18 +47,26 @@ This tutorial uses:
 - **namespace**: `demo`
 - **document type**: `item`
 
+Note: If you ever get an error like:
+
+> `Expected start of JSON object, got VALUE_STRING`
+
+it usually means the shell quoting turned your JSON into a **string**. The `--data-binary @- <<'JSON' ... JSON` style below avoids that problem on macOS/zsh.
+
 ### 2.1 Create (PUT a document)
 
 ```bash
 curl -X PUT "http://localhost:8081/document/v1/demo/item/docid/1" \
   -H "Content-Type: application/json" \
-  -d '{
-    "fields": {
-      "title": "Hello Vespa",
-      "body": "This is my first document stored in Vespa.",
-      "tags": ["tutorial", "beginner"]
-    }
-  }'
+  --data-binary @- <<'JSON'
+{
+  "fields": {
+    "title": "Hello Vespa",
+    "body": "This is my first document stored in Vespa.",
+    "tags": ["tutorial", "beginner"]
+  }
+}
+JSON
 ```
 
 ### 2.2 Update (PUT again with same id)
@@ -66,13 +74,15 @@ curl -X PUT "http://localhost:8081/document/v1/demo/item/docid/1" \
 ```bash
 curl -X PUT "http://localhost:8081/document/v1/demo/item/docid/1" \
   -H "Content-Type: application/json" \
-  -d '{
-    "fields": {
-      "title": "Hello Vespa (updated)",
-      "body": "I updated the body text.",
-      "tags": ["tutorial", "update"]
-    }
-  }'
+  --data-binary @- <<'JSON'
+{
+  "fields": {
+    "title": "Hello Vespa (updated)",
+    "body": "I updated the body text.",
+    "tags": ["tutorial", "update"]
+  }
+}
+JSON
 ```
 
 ### 2.3 Read/Search (keyword search)
