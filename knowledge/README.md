@@ -8,5 +8,6 @@ This folder contains simple explanations of common retrieval/search terms used i
 - **Metadata filtering**: `Metadata-filtering.md`
 - **Other methods (more techniques)**: `Other-methods.md`
 - **Chunking (how to split documents)**: `chunking/README.md`
+- **Relational DB vs Vector Store (SQL mindset)**: `Relational-vs-Vector-Store.md`
 
 
