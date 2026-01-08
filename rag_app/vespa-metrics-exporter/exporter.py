@@ -45,7 +45,10 @@ def _fetch_json(url: str) -> Dict[str, Any]:
 def _iter_metric_objects(obj: Any, ctx: Dict[str, str]) -> Iterable[Tuple[Dict[str, str], Dict[str, Any]]]:
     """
     Traverse Vespa metrics JSON and yield (context_labels, metric_obj) for each object that looks like:
-      { "name": "...", "values": { ... } }
+      { "values": { ... }, "dimensions": { ... } }
+
+    Note: In Vespa /metrics/v2/values, the metric *names* are usually the keys inside the "values" dict, e.g.:
+      { "values": { "query_latency.average": 181, "queries.rate": 0.1 }, "dimensions": {...} }
     """
     if isinstance(obj, dict):
         # enrich context when these keys exist
@@ -54,7 +57,8 @@ def _iter_metric_objects(obj: Any, ctx: Dict[str, str]) -> Iterable[Tuple[Dict[s
             if isinstance(v, str) and v:
                 ctx = {**ctx, label: v}
 
-        if "name" in obj and "values" in obj and isinstance(obj["name"], str) and isinstance(obj["values"], dict):
+        # Vespa metrics objects typically look like: {"values": {...}, "dimensions": {...}}
+        if "values" in obj and "dimensions" in obj and isinstance(obj["values"], dict) and isinstance(obj["dimensions"], dict):
             yield ctx, obj
 
         for v in obj.values():
@@ -66,13 +70,35 @@ def _iter_metric_objects(obj: Any, ctx: Dict[str, str]) -> Iterable[Tuple[Dict[s
 
 def _flatten_values(values: Dict[str, Any]) -> Iterable[Tuple[str, float]]:
     """
-    Vespa values can contain keys like:
-      {"count": 12, "average": 1.2, "sum": 3.4} or {"value": 0.123}
-    We export any numeric values we can find at the first level.
+    Vespa values is a dict where keys are metric names and values are numbers, e.g.:
+      {"query_latency.average": 181, "queries.rate": 0.1}
     """
     for k, v in values.items():
         if isinstance(v, (int, float)):
             yield k, float(v)
+
+
+_KNOWN_STATS = {
+    "average",
+    "sum",
+    "count",
+    "max",
+    "min",
+    "rate",
+    "last",
+}
+
+
+def _split_metric_and_stat(key: str) -> Tuple[str, str]:
+    """
+    Split "query_latency.average" -> ("query_latency", "average")
+    If no known stat suffix exists, return (key, "value").
+    """
+    if "." in key:
+        base, suffix = key.rsplit(".", 1)
+        if suffix in _KNOWN_STATS:
+            return base, suffix
+    return key, "value"
 
 
 def build_registry() -> CollectorRegistry:
@@ -92,17 +118,16 @@ def build_registry() -> CollectorRegistry:
         return registry
 
     for ctx, metric_obj in _iter_metric_objects(payload, ctx={"node": "", "service": ""}):
-        name = metric_obj.get("name", "")
-        if not name:
-            continue
-        if _FILTER and not _FILTER.search(name):
-            continue
         values = metric_obj.get("values", {})
         if not isinstance(values, dict):
             continue
-        for stat, num in _flatten_values(values):
+        for key, num in _flatten_values(values):
+            # Filter on the full key (most specific), not the base metric.
+            if _FILTER and not _FILTER.search(key):
+                continue
+            metric, stat = _split_metric_and_stat(key)
             gauge.labels(
-                metric=name,
+                metric=metric,
                 stat=stat,
                 node=ctx.get("node", ""),
                 service=ctx.get("service", ""),

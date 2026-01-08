@@ -21,6 +21,9 @@ VESPA_URL = os.environ.get("VESPA_URL", "http://vespa:8080").rstrip("/")
 VESPA_NAMESPACE = os.environ.get("VESPA_NAMESPACE", "my_ns")
 EMBED_DIM = int(os.environ.get("EMBED_DIM", "768"))
 
+RAG_TOP_K = int(os.environ.get("RAG_TOP_K", "5"))
+RAG_TARGET_HITS = int(os.environ.get("RAG_TARGET_HITS", "50"))
+
 CHUNK_WORDS = int(os.environ.get("CHUNK_WORDS", "220"))
 CHUNK_OVERLAP_WORDS = int(os.environ.get("CHUNK_OVERLAP_WORDS", "40"))
 
@@ -94,6 +97,72 @@ def _vespa_feed_chunk(fields: dict[str, Any]) -> dict[str, Any]:
     return r.json()
 
 
+def _vespa_retrieve(query_vec: list[float], top_k: int, target_hits: int) -> list[dict[str, Any]]:
+    """
+    Retrieve top chunks from Vespa using vector search.
+    """
+    yql = (
+        "select chunk_id, doc_id, text from sources chunk "
+        f"where ({{targetHits:{target_hits}}}nearestNeighbor(embedding, q));"
+    )
+    req = {
+        "yql": yql,
+        "hits": top_k,
+        "ranking.profile": "vector",
+        "input.query(q)": query_vec,
+    }
+
+    r = requests.post(f"{VESPA_URL}/search/", json=req, timeout=30)
+    r.raise_for_status()
+    body = r.json()
+    children = (((body or {}).get("root") or {}).get("children") or []) or []
+
+    out: list[dict[str, Any]] = []
+    for h in children:
+        fields = h.get("fields") or {}
+        out.append(
+            {
+                "id": h.get("id"),
+                "relevance": h.get("relevance"),
+                "chunk_id": fields.get("chunk_id"),
+                "doc_id": fields.get("doc_id"),
+                "text": fields.get("text"),
+            }
+        )
+    return out
+
+
+def _ollama_chat(messages: list[dict[str, Any]]) -> str:
+    """
+    Call Ollama chat endpoint and return assistant content.
+    """
+    r = requests.post(
+        f"{OLLAMA_BASE_URL}/api/chat",
+        json={"model": OLLAMA_CHAT_MODEL, "messages": messages, "stream": False},
+        timeout=300,
+    )
+    try:
+        data = r.json()
+    except Exception:
+        data = {"raw": r.text}
+
+    if r.ok:
+        msg = (data.get("message") or {}) if isinstance(data, dict) else {}
+        content = msg.get("content")
+        if isinstance(content, str):
+            return content
+        raise RuntimeError(f"Unexpected Ollama chat response shape: {data}")
+
+    # Ollama often returns 404 for model not found.
+    if isinstance(data, dict) and data.get("error"):
+        raise RuntimeError(
+            f"Ollama chat error (HTTP {r.status_code}): {data['error']}. "
+            f"Fix: pull the chat model inside the ollama container, e.g. "
+            f"`docker exec rag_ollama ollama pull {OLLAMA_CHAT_MODEL}`"
+        )
+    raise RuntimeError(f"Ollama chat failed (HTTP {r.status_code}): {data}")
+
+
 def _ingest_text(doc_id: str, text: str) -> dict[str, Any]:
     t0 = time.perf_counter()
     chunks = _chunk_text(text, CHUNK_WORDS, CHUNK_OVERLAP_WORDS)
@@ -150,6 +219,8 @@ def health() -> dict:
         "ollama_chat_model": OLLAMA_CHAT_MODEL,
         "ollama_embed_model": OLLAMA_EMBED_MODEL,
         "embed_dim": EMBED_DIM,
+        "rag_top_k": RAG_TOP_K,
+        "rag_target_hits": RAG_TARGET_HITS,
         "chunk_words": CHUNK_WORDS,
         "chunk_overlap_words": CHUNK_OVERLAP_WORDS,
     }
@@ -273,25 +344,90 @@ def list_models() -> dict:
     }
 
 
-# Minimal OpenAI-compatible response (stub). We'll implement real RAG next.
+# OpenAI-compatible response with real RAG:
+# - embed the latest user message
+# - retrieve top chunks from Vespa
+# - call Ollama chat model with context
 @app.post("/v1/chat/completions")
 def chat_completions(payload: dict) -> dict:
+    request_id = str(uuid.uuid4())
+    messages_in = payload.get("messages", []) or []
+
     user_text = ""
-    for m in payload.get("messages", []) or []:
-        if m.get("role") == "user":
-            user_text = m.get("content", "") or ""
+    for m in reversed(messages_in):
+        if (m or {}).get("role") == "user":
+            user_text = (m.get("content") or "").strip()
             break
 
-    content = (
-        "rag-api is up, but full RAG is not implemented yet.\n"
-        "You sent: " + user_text
-    )
+    if not user_text:
+        user_text = ""
+
+    try:
+        # 1) Embed query
+        t0 = time.perf_counter()
+        q = _ollama_embed_one(user_text)
+        _validate_embedding_dim(q)
+        t1 = time.perf_counter()
+
+        # 2) Retrieve
+        hits = _vespa_retrieve(q, top_k=RAG_TOP_K, target_hits=RAG_TARGET_HITS)
+        t2 = time.perf_counter()
+
+        context_blocks: list[str] = []
+        for h in hits:
+            cid = h.get("chunk_id") or ""
+            did = h.get("doc_id") or ""
+            txt = (h.get("text") or "").strip()
+            if not txt:
+                continue
+            context_blocks.append(f"[{did} | {cid}]\n{txt}")
+
+        context_text = "\n\n---\n\n".join(context_blocks).strip()
+        if not context_text:
+            answer = (
+                "I couldn't find any stored context in Vespa yet.\n"
+                "Ingest some documents first using /ingest/text or /ingest/file, then ask again."
+            )
+        else:
+            system = (
+                "You are a helpful assistant. Answer the user using ONLY the provided CONTEXT.\n"
+                "If the context is not enough, say you don't know.\n"
+                "Keep the answer clear and concise.\n\n"
+                "CONTEXT:\n"
+                + context_text
+            )
+
+            # Preserve the user's conversation, but inject our context as the first system message.
+            messages_out: list[dict[str, Any]] = [{"role": "system", "content": system}]
+            for m in messages_in:
+                role = (m or {}).get("role")
+                content = (m or {}).get("content")
+                if role in ("system", "user", "assistant") and isinstance(content, str):
+                    messages_out.append({"role": role, "content": content})
+
+            answer = _ollama_chat(messages_out)
+
+            # Append sources (ids only) so you can verify what was used.
+            source_lines = [f"- {h.get('doc_id')} :: {h.get('chunk_id')}" for h in hits if h.get("chunk_id")]
+            if source_lines:
+                answer = answer.rstrip() + "\n\nSources:\n" + "\n".join(source_lines)
+
+        embed_ms = (t1 - t0) * 1000.0
+        retrieve_ms = (t2 - t1) * 1000.0
+
+        content = answer
+        model_name = payload.get("model", "rag-ollama")
+        created = int(time.time())
+    except Exception as e:
+        content = f"RAG error: {e}"
+        model_name = payload.get("model", "rag-ollama")
+        created = int(time.time())
 
     return {
-        "id": "chatcmpl-stub",
+        "id": f"chatcmpl-{request_id}",
         "object": "chat.completion",
-        "created": 0,
-        "model": payload.get("model", "rag-ollama"),
+        "created": created,
+        "model": model_name,
         "choices": [
             {
                 "index": 0,
@@ -299,6 +435,15 @@ def chat_completions(payload: dict) -> dict:
                 "finish_reason": "stop",
             }
         ],
+        # Extra debug info (non-OpenAI standard). Safe to ignore by clients.
+        "rag_debug": {
+            "request_id": request_id,
+            "vespa_namespace": VESPA_NAMESPACE,
+            "top_k": RAG_TOP_K,
+            "target_hits": RAG_TARGET_HITS,
+            "embed_model": OLLAMA_EMBED_MODEL,
+            "chat_model": OLLAMA_CHAT_MODEL,
+        },
     }
 
 

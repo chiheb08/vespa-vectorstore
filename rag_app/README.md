@@ -215,6 +215,10 @@ Also useful endpoints:
 - Vespa raw metrics JSON: `http://localhost:19071/metrics/v2/values`
 - Exporter metrics (Prometheus text): `http://localhost:9109/metrics`
 
+If Grafana shows “No data” on the Vespa dashboard:
+- first verify the exporter returns **many** `vespa_metric_value{...}` lines at `http://localhost:9109/metrics`
+- then verify Prometheus sees series: open `http://localhost:9090` and run `count(vespa_metric_value)`
+
 ---
 
 ### 7) Configuration (most important knobs)
