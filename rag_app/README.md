@@ -98,6 +98,58 @@ curl -s http://localhost:8000/ingest/text \
   }' | python3 -m json.tool
 ```
 
+##### Understanding the `/ingest/text` response (what the values mean)
+
+Example response:
+
+```json
+{
+  "ok": true,
+  "doc_id": "doc-1",
+  "namespace": "my_ns",
+  "chunks_fed": 1,
+  "chunk_ids": ["doc-1::chunk-0"],
+  "embed": { "model": "nomic-embed-text", "dim": 768, "total_ms": 4656.0 },
+  "feed": { "vespa_url": "http://vespa:8080", "total_ms": 1027.9 },
+  "total_ms": 5683.9,
+  "request_id": "..."
+}
+```
+
+How to read it:
+
+- **`ok`**: `true` means the whole pipeline succeeded (chunk → embed → feed).
+- **`doc_id`**: your original document id (used to group chunks).
+- **`namespace`**: Vespa document namespace used by the API (`VESPA_NAMESPACE`).
+- **`chunks_fed`**: how many chunks were created and stored in Vespa.
+  - If your text is longer, you’ll see a bigger number here.
+- **`chunk_ids`**: the exact ids stored in Vespa (format: `<doc_id>::chunk-<index>`).
+- **`embed.total_ms`**: total time spent generating embeddings for all chunks (in milliseconds).
+  - In your case ~4656ms means **~4.6 seconds** to embed 1 chunk.
+- **`feed.total_ms`**: total time spent sending those chunks to Vespa (HTTP + indexing work).
+  - In your case ~1028ms means **~1.0 second** to feed 1 chunk.
+- **`total_ms`**: overall time for this request (≈ embed + feed + small overhead).
+- **`request_id`**: useful for tracing a single request in logs.
+
+##### My opinion on your numbers (what’s “normal” and how to improve)
+
+Your split looked like:
+- embedding ~4.6s
+- feeding ~1.0s
+- total ~5.7s
+
+This is not “wrong”, but it’s **slow for production**. Common reasons:
+
+- **First run is slower**: the embedding model may be loading/warming up.
+- **CPU-only**: Ollama on CPU can be slow, especially on larger models.
+- **One embedding request per chunk**: if you ingest many chunks, times add up.
+
+Quick improvements:
+- Run ingestion again (2nd run is often faster after warmup).
+- Use a faster/smaller embedding model if available for your hardware.
+- If you have a GPU, run Ollama with GPU support (big speedup).
+- Keep chunk count reasonable (chunk size/overlap directly affect total embed time).
+
 #### 3.2 Ingest a file (txt/md/pdf)
 
 ```bash
