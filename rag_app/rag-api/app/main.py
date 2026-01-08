@@ -155,6 +155,23 @@ def health() -> dict:
     }
 
 
+@app.get("/v1")
+def v1_index() -> dict[str, Any]:
+    """
+    Helpful endpoint for humans who visit http://localhost:8000/v1 in a browser.
+    OpenAI-compatible APIs typically don't define GET /v1, so we provide a small index.
+    """
+    return {
+        "ok": True,
+        "message": "OpenAI-compatible endpoints are available under /v1/*",
+        "endpoints": {
+            "models": {"method": "GET", "path": "/v1/models"},
+            "chat_completions": {"method": "POST", "path": "/v1/chat/completions"},
+        },
+        "docs": {"swagger": "/docs", "openapi_json": "/openapi.json"},
+    }
+
+
 @app.post("/ingest/text")
 def ingest_text(payload: dict) -> dict[str, Any]:
     doc_id = (payload.get("doc_id") or "").strip()
