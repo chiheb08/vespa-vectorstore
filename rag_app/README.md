@@ -162,6 +162,15 @@ Common mistake:
 - If you write `-F "file=/path/to/file.pdf"` (no `@`), you are sending a **string**, not uploading the file.
 - Use `@` to upload: `-F "file=@/path/to/file.pdf"`
 
+If your PDF is password-protected, pass the password like this:
+
+```bash
+curl -s http://localhost:8000/ingest/file \
+  -F "doc_id=myfile-1" \
+  -F "pdf_password=YOUR_PASSWORD" \
+  -F "file=@/ABS/PATH/TO/file.pdf" | python3 -m json.tool
+```
+
 ---
 
 ### 4) Chat with RAG in OpenWebUI

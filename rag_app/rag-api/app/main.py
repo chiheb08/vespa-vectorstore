@@ -174,7 +174,11 @@ def ingest_text(payload: dict) -> dict[str, Any]:
 
 
 @app.post("/ingest/file")
-async def ingest_file(doc_id: str = Form(...), file: UploadFile = File(...)) -> dict[str, Any]:
+async def ingest_file(
+    doc_id: str = Form(...),
+    file: UploadFile = File(...),
+    pdf_password: str | None = Form(None),
+) -> dict[str, Any]:
     request_id = str(uuid.uuid4())
     filename = (file.filename or "").lower()
     data = await file.read()
@@ -182,6 +186,42 @@ async def ingest_file(doc_id: str = Form(...), file: UploadFile = File(...)) -> 
     try:
         if filename.endswith(".pdf"):
             reader = PdfReader(io.BytesIO(data))
+            if getattr(reader, "is_encrypted", False):
+                if not pdf_password:
+                    return {
+                        "ok": False,
+                        "request_id": request_id,
+                        "filename": file.filename,
+                        "bytes": len(data),
+                        "error": (
+                            "This PDF appears to be encrypted/password-protected. "
+                            "Provide `pdf_password` as a multipart form field, e.g. "
+                            "`-F \"pdf_password=...\"`. "
+                            "If you still see an AES/cryptography error, rebuild rag-api to install cryptography."
+                        ),
+                    }
+
+                # pypdf decrypt returns 0 if it fails, 1/2 if it succeeds (depending on algorithm)
+                try:
+                    ok = reader.decrypt(pdf_password)
+                except Exception as e:
+                    return {
+                        "ok": False,
+                        "request_id": request_id,
+                        "filename": file.filename,
+                        "bytes": len(data),
+                        "error": f"Failed to decrypt PDF: {e}",
+                    }
+
+                if not ok:
+                    return {
+                        "ok": False,
+                        "request_id": request_id,
+                        "filename": file.filename,
+                        "bytes": len(data),
+                        "error": "PDF password was rejected (wrong password).",
+                    }
+
             text = "\n\n".join((p.extract_text() or "") for p in reader.pages).strip()
         else:
             # treat as text by default (txt/md/etc)
