@@ -106,6 +106,10 @@ curl -s http://localhost:8000/ingest/file \
   -F "file=@/ABS/PATH/TO/file.pdf" | python3 -m json.tool
 ```
 
+Common mistake:
+- If you write `-F "file=/path/to/file.pdf"` (no `@`), you are sending a **string**, not uploading the file.
+- Use `@` to upload: `-F "file=@/path/to/file.pdf"`
+
 ---
 
 ### 4) Chat with RAG in OpenWebUI
