@@ -226,6 +226,80 @@ These are metadata fields, like columns in SQL.
 - **summary**: return this field in the search response (like selecting columns to show).
 - **attribute**: store it so Vespa can filter fast (like indexing a column for WHERE).
 
+### 5.2.1 When do these “intervene” exactly? (timeline)
+
+Think of Vespa as doing 4 phases:
+
+1) **Feed (ingestion time)**: you send JSON documents (your chunks) to Vespa  
+2) **Indexing time**: Vespa builds the internal data structures (attributes, text index, HNSW)  
+3) **Query time**: you send a query; Vespa uses those structures to find and rank hits  
+4) **Response time**: Vespa returns only the fields included in the “summary”
+
+Here is the big picture:
+
+```mermaid
+flowchart LR
+  FEED["1) Feed JSON chunk\n(chunk_id, doc_id, text, embedding)"] --> BUILD["2) Build structures\nattribute / text index / HNSW"]
+  BUILD --> QUERY["3) Query\nfilters + vector search + ranking"]
+  QUERY --> OUT["4) Response\nsummary fields returned"]
+```
+
+Now map schema keywords to phases:
+
+- **`attribute`** intervenes at:
+  - **Indexing time**: Vespa stores a fast lookup structure for the field
+  - **Query time**: fast **filters**, fast access for ranking/grouping/sorting
+- **`index`** intervenes at:
+  - **Indexing time**: Vespa builds a **text inverted index**
+  - **Query time**: keyword search + BM25 scoring can work
+- **`summary`** intervenes at:
+  - **Response time**: the field can be returned in hits without extra fetch cost
+
+If you remember one sentence:
+
+> **attribute = fast filtering**, **index = keyword search**, **summary = returned in results**.
+
+### 5.2.2 What are these fields, in human terms?
+
+#### `doc_id` (document-level id)
+This is the id of the **original document** (PDF / page / ticket / wiki page) the chunk came from.
+
+- Used for:
+  - grouping results (“show at most 1 chunk per doc”)
+  - debugging (“which document did this chunk come from?”)
+  - filtering (“only search in doc_id=…” when debugging)
+
+#### `chunk_id` (chunk-level id)
+This identifies the **piece** inside the document.
+
+Common patterns:
+- `chunk_id = "<doc_id>#<chunk_index>"`
+- or a UUID
+
+Used for:
+- uniquely addressing a chunk record
+- debugging duplicates / missing chunks
+
+### 5.2.3 Concrete example: what you actually feed (ingestion)
+
+At ingestion time you send something like:
+
+```json
+{
+  "fields": {
+    "chunk_id": "doc-42#0007",
+    "doc_id": "doc-42",
+    "text": "If Docker exits with code 137, it usually means the container was killed (OOM)...",
+    "embedding": [0.01, -0.02, 0.04 /* ... length must match x[128] ... */]
+  }
+}
+```
+
+Then Vespa builds:
+- an **attribute store** for `chunk_id` and `doc_id` (fast filters)
+- a **text index** for `text` (BM25)
+- an **HNSW index** for `embedding` (fast ANN)
+
 ### 5.3 `text` (keyword search column)
 `indexing: summary | index` means:
 
@@ -233,6 +307,14 @@ These are metadata fields, like columns in SQL.
 - **summary**: return text in results
 
 `enable-bm25` means: “allow BM25 keyword ranking on this text”.
+
+### 5.3.1 When does `text` intervene?
+
+- **Query time**:
+  - if you do **keyword search**, Vespa uses the `index` structure
+  - if you use the `hybrid` rank profile, `bm25(text)` uses the text index
+- **Response time**:
+  - because of `summary`, the `text` field can be returned in the hit (so your RAG app can put it into the prompt)
 
 ### 5.4 `embedding` (vector column)
 `tensor<float>(x[128])` is a vector of length 128.
@@ -243,6 +325,17 @@ This is like a column that stores an array of floats, but used for similarity se
 - **distance-metric: angular**: similar to cosine distance
 
 `hnsw { ... }` means: “build an ANN index” so vector search is fast.
+
+### 5.4.1 When does `embedding` intervene?
+
+- **Ingestion time** (outside Vespa):
+  - your embedding model converts chunk text → vector
+- **Indexing time** (inside Vespa):
+  - Vespa stores the vector as an `attribute` and builds an HNSW index
+- **Query time**:
+  - your app sends a **query vector**
+  - Vespa uses the HNSW index to find nearest neighbors
+  - the rank profile uses `closeness(embedding)` to score hits
 
 ### 5.5 Ranking profiles (ORDER BY for search)
 
@@ -260,6 +353,17 @@ score = 0.5 \cdot bm25(text) + 0.5 \cdot closeness(embedding)
 
 It’s similar to:
 - “ORDER BY combined_score DESC”
+
+### 5.6 A very simple “who uses what, when?” table
+
+| Schema thing | What it is | Used when? | Why it exists |
+|---|---|---|---|
+| `field doc_id type string` | metadata column | query (filters/grouping), response (debug) | link chunk → original doc |
+| `field chunk_id type string` | metadata column | query (filters), response (debug) | unique id for the chunk record |
+| `field text type string` + `index` | text index | query | keyword search + BM25 |
+| `field embedding type tensor...` + HNSW | vector index | query | semantic similarity search |
+| `summary` | returnable field | response | include field in returned hits |
+| `attribute` | fast stored field | query | fast filters/sorting/grouping and ANN storage |
 
 ---
 

@@ -2,12 +2,25 @@ schema chunk {
 
   document chunk {
     field chunk_id type string {
+      # chunk_id = unique id of THIS chunk (a piece of a document).
+      # Typical value: "doc-42#0007" or a UUID.
+      #
+      # - attribute: makes it fast to filter/debug by id
+      # - summary: returns it in search results ("hits")
       indexing: summary | attribute
     }
     field doc_id type string {
+      # doc_id = id of the ORIGINAL document this chunk came from (pdf/page/ticket).
+      #
+      # - attribute: fast filters like WHERE doc_id="doc-42"
+      # - summary: returned in results so you can trace the source
       indexing: summary | attribute
     }
     field text type string {
+      # text = the actual chunk content used as RAG context.
+      #
+      # - index: builds a keyword (inverted) index
+      # - summary: returns text in results so the app can build prompts
       indexing: summary | index
       index: enable-bm25
     }
@@ -15,6 +28,10 @@ schema chunk {
     # Keep this small by default so examples are readable.
     # Change 128 to your real embedding dimension (e.g., 384/768/1536).
     field embedding type tensor<float>(x[128]) {
+      # embedding = vector representation of the chunk text (semantic meaning).
+      #
+      # - attribute: stores the vector in a fast structure
+      # - hnsw: builds an ANN index so "nearest neighbor" search is fast
       indexing: attribute
       attribute {
         distance-metric: angular
