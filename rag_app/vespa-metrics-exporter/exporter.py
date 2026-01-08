@@ -59,7 +59,14 @@ def _iter_metric_objects(obj: Any, ctx: Dict[str, str]) -> Iterable[Tuple[Dict[s
 
         # Vespa metrics objects typically look like: {"values": {...}, "dimensions": {...}}
         if "values" in obj and "dimensions" in obj and isinstance(obj["values"], dict) and isinstance(obj["dimensions"], dict):
-            yield ctx, obj
+            dims = obj.get("dimensions") or {}
+            ctx2 = ctx
+            # Pull the service id from the dimensions so we don't collapse multiple services into one series.
+            if isinstance(dims, dict):
+                sid = dims.get("serviceId") or dims.get("service")
+                if isinstance(sid, str) and sid:
+                    ctx2 = {**ctx2, "service": sid}
+            yield ctx2, obj
 
         for v in obj.values():
             yield from _iter_metric_objects(v, ctx)

@@ -219,6 +219,9 @@ If Grafana shows “No data” on the Vespa dashboard:
 - first verify the exporter returns **many** `vespa_metric_value{...}` lines at `http://localhost:9109/metrics`
 - then verify Prometheus sees series: open `http://localhost:9090` and run `count(vespa_metric_value)`
 
+Deep explanation of what you see in `http://localhost:9109/metrics`:
+- `rag_app/VESPA_EXPORTED_METRICS_EXPLAINED.md`
+
 ---
 
 ### 7) Configuration (most important knobs)
