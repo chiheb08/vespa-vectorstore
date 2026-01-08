@@ -103,6 +103,60 @@ You applied a filter like:
 
 **Analogy**: You’re searching Google but you accidentally restrict to “site:wrong-domain.com”. The search engine is fine—your filter is not.
 
+### What are `tenant_id`, `doc_type`, `language` exactly?
+
+These are **not built-in** to Vespa (or any vector DB). They are **example metadata fields** that *you* decide to store on each chunk at ingestion time, so you can filter later.
+
+Think of them like extra SQL columns you add to your “chunks table”:
+
+- **`tenant_id`**: “Which customer/company/team does this chunk belong to?”
+  - used for multi-tenant isolation (don’t leak data across customers)
+  - example values: `t1`, `acme`, `org_42`
+- **`doc_type`**: “What kind of document is this?”
+  - used to restrict retrieval to relevant categories
+  - example values: `policy`, `runbook`, `ticket`, `faq`
+- **`language`** (often named `lang`): “What language is the text written in?”
+  - used to avoid mixing languages in retrieval
+  - example values: `en`, `fr`, `de`
+
+#### When do they intervene?
+
+- **Ingestion time**: you attach these fields to each chunk record you feed to the DB  
+- **Query time**: you apply filters like “only chunks where `tenant_id=t1` and `language=en`”  
+- **(Optional) Response time**: you might return them for debugging (“why did I get this hit?”)
+
+#### Concrete example: how they look inside an ingested chunk
+
+At ingestion time, your app usually feeds JSON like:
+
+```json
+{
+  "fields": {
+    "chunk_id": "doc-42#0007",
+    "doc_id": "doc-42",
+    "tenant_id": "t1",
+    "doc_type": "policy",
+    "language": "en",
+    "text": "…chunk text…",
+    "embedding": [0.01, -0.02, 0.04 /* ... */]
+  }
+}
+```
+
+If you **never store** `tenant_id/doc_type/language` during ingestion, then you **can’t filter by them** later.
+
+#### What you must do in the schema (Vespa)
+
+To filter on these fields efficiently, they should exist in your schema and be `attribute`s, e.g.:
+
+```text
+field tenant_id type string { indexing: summary | attribute }
+field doc_type  type string { indexing: summary | attribute }
+field language  type string { indexing: summary | attribute }
+```
+
+Then at query time you can restrict retrieval to the right subset.
+
 ### Fixes teams use
 - **Log filters** on every request (tenant, source, time range).
 - Store filter fields as fast attributes (in Vespa: `attribute`) so filters are cheap.
