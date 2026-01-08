@@ -122,6 +122,9 @@ curl -fsS http://localhost:19071/state/v1/health
 curl -fsS http://localhost:19071/metrics/v2/values > metrics.json
 ```
 
+If your Prometheus/Grafana is in another namespace and you want to scrape Vespa “the right way”, see:
+- `VESPA_KUBERNETES_PROMETHEUS_GRAFANA_GUIDE.md`
+
 #### 3.1 “Is Vespa up?”
 
 ```bash
