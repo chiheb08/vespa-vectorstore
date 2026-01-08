@@ -9,5 +9,6 @@ This folder collects debugging notes for issues encountered while setting up/run
 - **2025-12-16**: Vespa deployer used localhost — see `2025-12-16-vespa-deployer-localhost.md`
 - **2025-12-16**: Vespa deploy failed: `distribution-key` missing — see `2025-12-16-vespa-services-xml-distribution-key.md`
 - **2025-12-16**: Vespa schema parse error (`hnsw` placement) — see `2025-12-16-vespa-schema-hnsw-syntax.md`
+- **2026-01-08**: `rag-api` ingest endpoints missing (`/ingest/text` 404) — see `2026-01-08-rag-api-ingest-endpoints-not-found.md`
 
 
