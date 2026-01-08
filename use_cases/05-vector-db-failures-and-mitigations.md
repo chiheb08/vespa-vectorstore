@@ -125,6 +125,27 @@ Think of them like extra SQL columns you add to your “chunks table”:
 - **Query time**: you apply filters like “only chunks where `tenant_id=t1` and `language=en`”  
 - **(Optional) Response time**: you might return them for debugging (“why did I get this hit?”)
 
+#### Easy workflow diagram (ingest → filter → retrieve)
+
+```mermaid
+flowchart TB
+  subgraph ING["A) Ingestion (one-time or batch)"]
+    D["1) Raw documents\n(PDF / Confluence / GitHub)"] --> CH["2) Chunking\n(split into small pieces)"]
+    CH --> META["3) Add metadata per chunk\ntenant_id / doc_type / language / source / ACL"]
+    META --> EMB["4) Embed chunk text\n(text → embedding vector)"]
+    EMB --> FEED["5) Feed to Vespa\nstore: text + embedding + metadata"]
+  end
+
+  subgraph QRY["B) Query (every user question)"]
+    U["6) User asks a question"] --> QEMB["7) Embed the question\n(query → embedding vector)"]
+    U --> FILT["8) Build filters from context\n(e.g., tenant_id=t1,\nuser groups, language=en)"]
+    FILT --> RET["9) Retrieve ONLY from allowed subset\n(vector search + ranking)"]
+    QEMB --> RET
+    RET --> TOP["10) Top-K chunks returned\n(with text + ids)"]
+    TOP --> LLM["11) LLM uses chunks as context\n→ final answer"]
+  end
+```
+
 #### Concrete example: how they look inside an ingested chunk
 
 At ingestion time, your app usually feeds JSON like:
