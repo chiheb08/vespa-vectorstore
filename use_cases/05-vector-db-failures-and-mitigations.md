@@ -32,6 +32,62 @@ If you learn one debugging habit:
 
 ## 1) Failure mode #1: “Vector DB is bad” but the real bug is **filters**
 
+### What are “filters”? (definition, explained slowly)
+
+A **filter** is a rule you apply at query time that says:
+
+> “Only consider documents/chunks whose **metadata fields** match these conditions.”
+
+In other words, filters do **subset selection**.
+
+- **Vector similarity** answers: “Which chunks are *most similar in meaning* to my question?”
+- **Filters** answer: “Which chunks are *allowed/eligible* to be searched at all?”
+
+If your filter is wrong (or too strict), the system will search inside the **wrong subset** (or an empty subset), even if the right document exists.
+
+**Where do filters come from?**
+
+Almost always from **metadata you stored during ingestion**. For example, every chunk you ingest might carry fields like:
+- `tenant_id` (which company/team owns the doc)
+- `doc_type` (policy/runbook/ticket)
+- `source` (confluence/github/slack)
+- `lang` (en/fr)
+- `allowed_users` / `allowed_groups` (permissions)
+
+Then, at query time, you apply filters using those fields.
+
+**Important Vespa detail (why `attribute` matters):**
+
+In Vespa, fields you want to filter on are typically stored as **attributes** (fast access). In your schema you already have examples like:
+- `chunk_id` and `doc_id` using `indexing: summary | attribute`
+
+That pattern is what makes filtering efficient and predictable.
+
+### Diagram: ingestion metadata → stored fields → filtered retrieval
+
+```mermaid
+flowchart LR
+  S["Source docs\n(PDF/Confluence/GitHub)"] --> C["Chunking\n(split into chunks)"]
+  C --> M["Add metadata per chunk\n(tenant_id, doc_type, lang, ACL, source)"]
+  M --> EM["Embedding model\n(chunk text → vector)"]
+  EM --> V["Feed to Vespa\ntext + embedding + metadata"]
+  V --> I["Indexing\n- embedding as attribute (ANN)\n- filter fields as attributes\n- text indexed (BM25 optional)"]
+  Q["User query + user identity"] --> F["Build filters\n(e.g., tenant_id='acme', allowed_groups contains 'finance')"]
+  Q --> QE["Embed query\n(query → vector)"]
+  F --> R["Retrieve candidates\nONLY from filtered subset"]
+  QE --> R
+  R --> H["Top-K chunks\n→ prompt → LLM"]
+```
+
+### Diagram: why wrong filters feel like “vector search is broken”
+
+```mermaid
+flowchart TD
+  A["All chunks in the database"] --> B["Apply filters"]
+  B -->|Correct filters| C["Eligible subset\n(contains the right chunk)"] --> D["Vector search finds it"]
+  B -->|Wrong/too strict filters| E["Wrong/empty subset\n(misses the right chunk)"] --> F["Vector search can't find it\nbecause it is not allowed to look there"]
+```
+
 ### What it looks like (symptoms)
 - For some users/tenants, results are empty or unrelated.
 - For other tenants, it works.
@@ -53,6 +109,36 @@ You applied a filter like:
 - Add “debug mode” to test:
   - query with filters
   - same query with filters removed
+
+### Concrete examples (what teams actually filter on)
+
+#### Example A: Multi-tenant RAG (tenant isolation)
+
+- **Ingest-time metadata** (stored on each chunk):
+  - `tenant_id="acme"`
+- **Query-time filter**:
+  - only retrieve from chunks where `tenant_id="acme"`
+
+If a chunk was mistakenly ingested with `tenant_id="Acme"` (case mismatch) or missing `tenant_id`, it becomes invisible.
+
+#### Example B: Permissions / ACL
+
+- **Ingest-time metadata**:
+  - `allowed_groups=["finance","hr"]`
+- **Query-time filter**:
+  - only retrieve chunks where `allowed_groups` contains the user’s groups
+
+Common bug: the ingestion pipeline stores groups as `"Finance"` but your identity provider sends `"finance"`.
+
+#### Example C: Source + doc_type (avoiding noise)
+
+- **Ingest-time metadata**:
+  - `source="github"`
+  - `doc_type="runbook"`
+- **Query-time filter**:
+  - restrict to `source="github"` when the user is asking about incidents/runbooks
+
+Common bug: documents are labeled `doc_type="guide"` but you filter for `doc_type="runbook"` → fewer (or zero) eligible chunks.
 
 ### Diagram (where it fails)
 
@@ -252,5 +338,6 @@ These are widely cited references that explain the underlying methods used by ve
   - Query operator `nearestNeighbor`: `https://docs.vespa.ai/en/reference/query-language-reference.html#nearestneighbor`
 
 Note: “real-world” incident writeups about retrieval failures are often published as vendor/engineering blogs rather than academic papers. If you tell me your domain (support chatbot, e-commerce search, internal docs RAG, etc.), I can add more domain-specific case studies and sources.
+
 
 

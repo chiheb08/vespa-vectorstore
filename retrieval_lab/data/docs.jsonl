@@ -7,3 +7,4 @@
 {"doc_id":"doc-7","tenant_id":"t1","source":"docs","title":"## Compose errors\n## Missing contexts\n## Fixes","body":"## Missing build contexts\nIf docker compose says a build context path was not found, create the missing folder or fix the path in docker-compose.yml.\n\n## Services XML distribution-key\nIf Vespa says node missing required attribute distribution-key, add distribution-key=\"0\" to the node in services.xml.\n\n## HNSW schema syntax\nIf schema parsing fails around hnsw, ensure hnsw block is inside index { ... } and embedding field has indexing: attribute | index."}
 
 
+

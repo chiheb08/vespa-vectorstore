@@ -189,3 +189,4 @@ Reply with:
 - Do you prefer exporter as **sidecar** (same pod) or **separate Deployment**?
 
 
+
