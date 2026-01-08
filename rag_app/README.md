@@ -68,6 +68,9 @@ List installed models:
 docker exec rag_ollama ollama list
 ```
 
+If you see errors like `model "nomic-embed-text" not found` when calling `/ingest/text`,
+it means you **did not pull the embedding model yet**. Fix by running the pull command above.
+
 If OpenWebUI still shows no models after pulling, restart it:
 
 ```bash
