@@ -14,6 +14,9 @@ vespa_metric_value{metric="memory_virt",node="vespa",service="container",stat="v
 
 This file explains **exactly what these values mean** and how to interpret them.
 
+If you prefer a super simple version first (analogies + examples), start with:
+- `rag_app/VESPA_EXPORTED_METRICS_EXPLAINED_SIMPLE.md`
+
 ---
 
 ## 1) What is this endpoint?

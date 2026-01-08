@@ -221,6 +221,8 @@ If Grafana shows “No data” on the Vespa dashboard:
 
 Deep explanation of what you see in `http://localhost:9109/metrics`:
 - `rag_app/VESPA_EXPORTED_METRICS_EXPLAINED.md`
+- Super-beginner version (analogies + examples):
+  - `rag_app/VESPA_EXPORTED_METRICS_EXPLAINED_SIMPLE.md`
 
 ---
 
