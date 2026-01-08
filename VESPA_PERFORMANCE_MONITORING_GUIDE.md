@@ -67,6 +67,61 @@ If you only monitor one thing, monitor **p95 query latency** and **error rate**.
 
 ### 3) Quick checks you can run right now
 
+#### 3.0 If Vespa is running in Kubernetes (run checks from inside the pod)
+
+In Kubernetes, you often **cannot reach** Vespa’s internal ports directly from your laptop.
+Two common approaches:
+
+- **Option A (recommended for debugging)**: `kubectl exec` into the Vespa pod and curl `localhost`
+- **Option B**: `kubectl port-forward` a port to your laptop temporarily
+
+First, find the pod:
+
+```bash
+kubectl get pods -A | grep -i vespa
+```
+
+If you know the namespace already (recommended):
+
+```bash
+kubectl -n <NAMESPACE> get pods | grep -i vespa
+```
+
+> Tip: if your pod has multiple containers, add `-c <container-name>` to `kubectl exec`.
+
+**From inside the pod**, these endpoints usually work on localhost:
+
+- Health: `http://localhost:19071/state/v1/health`
+- Metrics: `http://localhost:19071/metrics/v2/values`
+- Query/Document API: `http://localhost:8080/`
+
+Example commands:
+
+```bash
+# Health check (inside pod)
+kubectl -n <NAMESPACE> exec -it <VESPA_POD_NAME> -- curl -fsS http://localhost:19071/state/v1/health
+
+# Metrics JSON (inside pod)
+kubectl -n <NAMESPACE> exec -it <VESPA_POD_NAME> -- curl -fsS http://localhost:19071/metrics/v2/values | head -n 50
+```
+
+If you prefer running curls from your laptop, port-forward:
+
+```bash
+# Forward Vespa query+document API
+kubectl -n <NAMESPACE> port-forward pod/<VESPA_POD_NAME> 8080:8080
+
+# Forward Vespa metrics/control port
+kubectl -n <NAMESPACE> port-forward pod/<VESPA_POD_NAME> 19071:19071
+```
+
+Then use the same curl commands as Docker/local, but against your laptop:
+
+```bash
+curl -fsS http://localhost:19071/state/v1/health
+curl -fsS http://localhost:19071/metrics/v2/values > metrics.json
+```
+
 #### 3.1 “Is Vespa up?”
 
 ```bash
