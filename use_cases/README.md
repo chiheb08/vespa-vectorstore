@@ -15,6 +15,7 @@ Each case includes:
 - **Use case 2: “Duplicates” drowned out diversity (MMR/diversification)**: `02-duplicate-results-and-diversification.md`
 - **Use case 3: Lexical-only or vector-only retrieval failed (hybrid + fusion)**: `03-hybrid-and-fusion-workarounds.md`
 - **Use case 4: Queries were vague (query rewriting / multi-query)**: `04-query-rewriting-and-multiquery.md`
+- **Use case 5: Real-world vector DB failure modes + mitigations (deep beginner guide)**: `05-vector-db-failures-and-mitigations.md`
 
 
 
