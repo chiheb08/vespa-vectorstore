@@ -6,6 +6,7 @@ This repository is a small, practical “Vespa as a vector store” starter:
 - **Tutorial (more detailed)**: `VESPA_VECTOR_STORE_TUTORIAL.md`
 - **Performance monitoring**: `VESPA_PERFORMANCE_MONITORING_GUIDE.md`
 - **Kubernetes monitoring (Prometheus/Grafana cross-namespace)**: `VESPA_KUBERNETES_PROMETHEUS_GRAFANA_GUIDE.md`
+- **Production RAG on private cloud (Vespa-focused)**: `knowledge/Vespa-RAG-Private-Cloud-Architecture-and-Performance.md`
 - **Example Vespa app package**: `my-vespa-app/`
 - **Sample scripts**:
   - `scripts/generate_feed.py` generates JSONL “chunk” documents (with random embeddings) you can feed into Vespa
