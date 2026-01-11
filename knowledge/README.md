@@ -11,5 +11,6 @@ This folder contains simple explanations of common retrieval/search terms used i
 - **Relational DB vs Vector Store (SQL mindset)**: `Relational-vs-Vector-Store.md`
 - **Tracing + Monitoring + Improving retrieval (how to debug results)**: `VectorDB-Tracing-Monitoring-Improving.md`
 - **Onyx + Vespa (retrieval methods + what to tune)**: `Onyx-Vespa-Retrieval-and-Performance.md`
+- **Storage for Vespa (NFS vs NVMe SSD)**: `Storage-NFS-vs-NVMe-SSD-for-Vespa.md`
 
 
