@@ -11,6 +11,9 @@ You will see the same pattern again and again:
 
 ## 0) The full pipeline (where problems can happen)
 
+> Note: Mermaid diagrams render on GitHub, but some local Markdown previews don’t support Mermaid.
+> If you don’t see the diagram, use the ASCII fallback right below it.
+
 ```mermaid
 flowchart LR
   U["User question"] --> QP["Query processing\n(normalize + filters)"]
@@ -22,6 +25,21 @@ flowchart LR
   RR --> P["Prompt builder\n(context)"]
   P --> L["LLM generation"]
   L --> A["Answer"]
+```
+
+**ASCII fallback (always renders):**
+
+```text
+User question
+  -> Query processing (normalize + filters)
+  -> Embedding model (query -> vector)
+  -> Vector DB ANN search (HNSW/IVF/etc.)
+  -> Top-K chunks
+  -> Optional: Hybrid (BM25) / Fusion (RRF)
+  -> Optional: Reranker
+  -> Prompt builder (context)
+  -> LLM generation
+  -> Answer
 ```
 
 If you learn one debugging habit:

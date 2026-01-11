@@ -21,6 +21,9 @@ Vespa is not “just a vector DB”. In many production RAG stacks, Vespa is res
 
 ## Architecture diagram (private cloud, Vespa as retrieval engine)
 
+> Note: Mermaid diagrams render on GitHub, but some local Markdown previews don’t support Mermaid.
+> If you don’t see the diagram, use the ASCII fallback below.
+
 ```mermaid
 flowchart LR
   U[User / App] --> GW[API Gateway / Ingress]
@@ -46,6 +49,34 @@ flowchart LR
     LOG --> OBS[Prom/Grafana/ELK]
     MET --> OBS
   end
+```
+
+**ASCII fallback (always renders):**
+
+```text
+User/App
+  |
+  v
+API Gateway / Ingress
+  |
+  v
+Query Service (RAG Orchestrator)
+  |            \
+  | embed query  \ YQL + filters + ranking.profile
+  v              v
+Embedding svc    Vespa (vector+keyword+filters+ranking)
+                   |
+                   v
+              topK chunks + metadata
+                   |
+                   v
+Query Service -> Prompt builder -> LLM service -> Answer
+
+Ingestion path:
+Sources -> Connectors/Extract -> Chunk+Metadata/ACL -> Embed chunks -> Feed -> Vespa
+
+Observability:
+Query Service logs + Vespa metrics -> Prom/Grafana/ELK
 ```
 
 ---
