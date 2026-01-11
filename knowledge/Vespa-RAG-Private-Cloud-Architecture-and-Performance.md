@@ -26,27 +26,27 @@ Vespa is not “just a vector DB”. In many production RAG stacks, Vespa is res
 
 ```mermaid
 flowchart LR
-  U[User / App] --> GW[API Gateway / Ingress]
-  GW --> Q[Query Service (RAG Orchestrator)]
+  U["User / App"] --> GW["API Gateway / Ingress"]
+  GW --> Q["Query Service (RAG Orchestrator)"]
 
-  Q -->|embed query| EQ[Embedding service]
-  Q -->|YQL + filters + ranking.profile| V[(Vespa)]
+  Q -->|embed query| EQ["Embedding service"]
+  Q -->|YQL + filters + ranking.profile| V["Vespa"]
   V -->|topK chunks + metadata| Q
-  Q -->|build prompt| LLM[LLM service]
+  Q -->|build prompt| LLM["LLM service"]
   LLM --> Q --> U
 
   subgraph Ingestion path
-    SRC[Sources: Drive/Slack/Confluence/etc] --> CONN[Connectors + Extract]
-    CONN --> CH[Chunk + enrich metadata/ACL]
-    CH -->|embed chunks (batch)| EP[Embedding service]
-    EP --> FEED[Feeder / Indexing worker]
+    SRC["Sources: Drive/Slack/Confluence/etc"] --> CONN["Connectors + Extract"]
+    CONN --> CH["Chunk + enrich metadata/ACL"]
+    CH -->|embed chunks (batch)| EP["Embedding service"]
+    EP --> FEED["Feeder / Indexing worker"]
     FEED -->|Document API feed| V
   end
 
   subgraph Observability
-    Q --> LOG[Logs: query + filters + timings]
-    V --> MET[Metrics: latency/CPU/memory/feed]
-    LOG --> OBS[Prom/Grafana/ELK]
+    Q --> LOG["Logs: query + filters + timings"]
+    V --> MET["Metrics: latency/CPU/memory/feed"]
+    LOG --> OBS["Prometheus/Grafana/ELK"]
     MET --> OBS
   end
 ```
