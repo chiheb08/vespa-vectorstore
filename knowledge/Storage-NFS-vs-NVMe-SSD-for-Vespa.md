@@ -41,6 +41,45 @@ Ref (Vespa architecture / compute where data lives):
 
 ## 2) Mental model: why NFS is different from NVMe
 
+### First: your colleague is right (they’re different *layers*)
+
+- **NVMe SSD** is a **type of storage device/interface** (hardware + protocol over PCIe).  
+  Think: *“a very fast disk attached to a machine.”*
+
+- **NFS** is a **network filesystem protocol**.  
+  Think: *“a way to access a folder that lives on another machine, over the network.”*
+
+So it is totally possible to have:
+
+- **NFS backed by NVMe** (fast disks on the NFS server)  
+  but you still pay the “network filesystem” costs (network hop, server contention, jitter).
+
+### The “stack” picture (who sits on top of who)
+
+> Mermaid renders on GitHub. If you don’t see it, use ASCII fallback.
+
+```mermaid
+flowchart TB
+  APP["Vespa process"] --> FS["Filesystem API (open/read/write)"]
+  FS --> A["Option A: local filesystem (ext4/xfs)"]
+  A --> NVME["Local NVMe SSD"]
+
+  FS --> B["Option B: NFS client mount"]
+  B --> NET["Network"]
+  NET --> NFSS["NFS server"]
+  NFSS --> BACK["Server storage backend (can be NVMe SSD, SSD, HDD, SAN, etc.)"]
+```
+
+**ASCII fallback:**
+
+```text
+Vespa -> filesystem API
+  -> Option A: local filesystem -> local NVMe SSD
+
+Vespa -> filesystem API
+  -> Option B: NFS mount -> network -> NFS server -> backend storage (could be NVMe)
+```
+
 ### NFS (Network File System)
 
 NFS is “a filesystem over the network”:
@@ -63,6 +102,24 @@ NVMe is a local device directly attached via PCIe:
 - extremely low latency
 - huge IOPS
 - very predictable tails
+
+---
+
+## 2.5) Practical examples (what people mean in Kubernetes)
+
+### Example 1: “local NVMe PVC”
+
+- The Vespa content pod is scheduled onto a node that has NVMe.
+- The PVC is backed by a **node-local** disk (local PV).
+- Data path stays inside the node: low latency, high IOPS.
+
+### Example 2: “NFS PVC backed by NVMe”
+
+- The Vespa pod mounts an NFS share (PVC backed by NFS).
+- The NFS server itself might be using NVMe internally.
+- But the Vespa pod still sees: **network hop + NFS server as a shared bottleneck**.
+
+This is why “NFS-on-NVMe” can be better than “NFS-on-HDD” but still much worse than “local NVMe”.
 
 ---
 
