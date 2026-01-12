@@ -12,5 +12,6 @@ This folder contains simple explanations of common retrieval/search terms used i
 - **Tracing + Monitoring + Improving retrieval (how to debug results)**: `VectorDB-Tracing-Monitoring-Improving.md`
 - **Onyx + Vespa (retrieval methods + what to tune)**: `Onyx-Vespa-Retrieval-and-Performance.md`
 - **Storage for Vespa (NFS vs NVMe SSD)**: `Storage-NFS-vs-NVMe-SSD-for-Vespa.md`
+- **OpenShift + Vespa storage (NFS PVC diagram + recommendations)**: `OpenShift-Vespa-Storage-Setup-and-Recommendations.md`
 
 
